@@ -28,6 +28,25 @@ namespace Selenium_QDproj
             webDriver.Manage().Window.Maximize();
         }
 
+        public void AdResolver()
+        {
+            string closeButton1 = "//div[@id='dismiss-button']/div";
+            string closeButton2 = "//div[@id='dismiss-button']/div";
+            //если попапнулась реклама
+            if (webDriver.FindElements(By.XPath(closeButton1)).Count > 0)
+            {
+                IWebElement closeAd = webDriver.FindElement(By.XPath(closeButton1));
+                closeAd.Click();
+            }
+            //другой тип рекламы
+            if (webDriver.FindElements(By.XPath(closeButton2)).Count > 0)
+            {
+                IWebElement closeAd2 = webDriver.FindElement(By.XPath(closeButton2));
+                closeAd2.Click();
+            }
+        }
+
+
         [Test]
         public void SearchTest() 
         {
@@ -35,36 +54,22 @@ namespace Selenium_QDproj
             IWebElement searchBox = webDriver.FindElement(By.Name("s"));
             searchBox.SendKeys("html");
             searchBox.Submit();
+            var pageTitle = webDriver.Title;
             //проверить, что отображена страница результатов поиска, в тайтле которой отображается поисковый запрос - "HTML"
-            Assert.IsTrue(webDriver.Title.Contains("html"));
+            StringAssert.Contains("html", pageTitle);
 
             //проверить, что все товары в выдаче содержат поисковый запрос и ссылку в своем названии (вебэлемент содержит href атрибут формата 'https://...')
-            IWebElement[] items = webDriver.FindElements(By.XPath("//div[@class='post-content']")).ToArray();
-            foreach (IWebElement item in items)
+            var items = webDriver.FindElements(By.XPath("//div/h2/a")).ToArray();
+            foreach (var item in items)
             {
-                IWebElement productLink = item.FindElement(By.XPath("//h2/a"));
-                Assert.IsTrue(productLink.Text.ToLower().Contains("html"));
-                Assert.IsTrue(productLink.GetAttribute("href").StartsWith("https://"));
+                string productLink = item.FindElement(By.XPath("//div/h2/a")).GetAttribute("href");
+                Assert.That(productLink, Does.Contain("https://"));
             }
 
             //перейти на карточку товара 'Thinking in HTML' 
+            AdResolver();
             IWebElement itemThink = items[0].FindElement(By.XPath("//h2/a[@title='Thinking in HTML']"));
             itemThink.Click();
-
-            /*//если попапнулась реклама
-            if (webDriver.FindElements(By.XPath("//div[@id='dismiss-button']")).Count > 0)
-            {
-                IWebElement closeAd = webDriver.FindElement(By.XPath("//div[@id='dismiss-button']"));
-                Thread.Sleep(1000);
-                closeAd.Click();
-            }
-            //другой тип рекламы
-            if (webDriver.FindElements(By.XPath("//div[@id='dismiss-button']")).Count > 0)
-            {
-                IWebElement closeAd2 = webDriver.FindElement(By.XPath("//div[contains(@class,'close-button')]"));
-                Thread.Sleep(1000);
-                closeAd2.Click();
-            }*/
 
             //и проверить, что отображена метка SALE на картинке товара и отображены две цены (обычная и цена со скидкой)
             Thread.Sleep(3000);
@@ -73,62 +78,76 @@ namespace Selenium_QDproj
 
             IWebElement regularPrice = webDriver.FindElement(By.XPath("//del/span[@class='woocommerce-Price-amount amount']"));
             IWebElement salePrice = webDriver.FindElement(By.XPath("//ins/span[@class='woocommerce-Price-amount amount']"));
-            Assert.IsTrue(regularPrice.Text.StartsWith("₹"));
-            Assert.IsTrue(salePrice.Text.StartsWith("₹"));
+            StringAssert.StartsWith("₹", regularPrice.Text, salePrice.Text);
 
             //найти в Related products 'HTML5 WebApp Develpment' и перейти на карточку товара
-            Thread.Sleep(3000);
-            IWebElement[] relatedProds = webDriver.FindElements(By.XPath("//ul[@class='products']")).ToArray();
-            IWebElement itemHtmlWebDev = relatedProds[0].FindElement(By.XPath("//li/a[@class='woocommerce-LoopProduct-link']"));
-
+            IWebElement itemHtmlWebDev = webDriver.FindElement(By.XPath("//li/a[@class='woocommerce-LoopProduct-link']"));
             itemHtmlWebDev.Click();
-
+            AdResolver();
 
             //добавить товар в корзину и запомнить полное название и цену
-            webDriver.Navigate().GoToUrl("https://practice.automationtesting.in/product/mastering-javascript/");
-            IWebElement itemName = webDriver.FindElement(By.XPath("//h1[@itemprop='name']"));
-/*            IWebElement itemprice = webDriver.FindElement(By.XPath("//p[@class='price']/span/text()"));*/
+            //у пошук javascript, перевіряєш шо у тайтлі є "JavaScript",
+            searchBox = webDriver.FindElement(By.Name("s"));
+            searchBox.SendKeys("javascript");
+            searchBox.Submit();
+            AdResolver();
+            pageTitle = webDriver.Title;
+            StringAssert.Contains("javascript", pageTitle, "This string does not contain 'javascript'");
+            //далі переходь на останній товар. А в ньому потім в релейтед перейдеш на цю сторінку де є товар.
+            items = webDriver.FindElements(By.XPath("//div[@class='post-content']")).ToArray();
+            IWebElement itemFuncJS = webDriver.FindElement(By.XPath("//h2/a[@title='Mastering JavaScript']"));
+            itemFuncJS.Click();
+            AdResolver();
+
+            var itemName = webDriver.FindElement(By.XPath("//h1[@itemprop='name']")).Text;
+            var itemprice = webDriver.FindElement(By.XPath("//p[@class='price']/span")).Text;
+            var intitemprice = Convert.ToDouble(itemprice.Replace("₹", ""));
 
             IWebElement addItemToCart = webDriver.FindElement(By.XPath("//button[@type='submit']"));
             addItemToCart.Click();
-            IWebElement cartMsg = webDriver.FindElement(By.XPath("//div[@class='woocommerce-message']"));
+            var cartMsg = webDriver.FindElement(By.XPath("//div[@class='woocommerce-message']"));
 
-            /*            Assert.IsTrue(cartMsg.Text.Contains($"{itemName}"));*/
+            StringAssert.Contains($"{itemName}", cartMsg.Text, $"Cart message does not contain {itemName}");
 
             //изменить количество товара в корзине на 3
             IWebElement viewBasket = cartMsg.FindElement(By.XPath("//a[contains(@class,'button')]"));
             viewBasket.Click();
 
             IWebElement qty = webDriver.FindElement(By.XPath("//div[@class='quantity']/input"));
-            qty.Click();
+/*            qty.Click();*/
             qty.Clear();
             qty.SendKeys("3");
             IWebElement updateCart = webDriver.FindElement(By.Name("update_cart"));
             updateCart.Click();
             //открыть корзину и сравнить название и цену в колонке "Total" у товара, на соответствие сохраненным значениям в соответствии с измененным количеством
+            var prodName = webDriver.FindElement(By.XPath("//td[@class=\"product-name\"]/a")).Text;
+            var totalPrice = webDriver.FindElement(By.XPath("//td[@class=\"product-subtotal\"]/span")).Text;
 
+            var inttotalPrice = Convert.ToDouble(totalPrice.Replace("₹","").Replace(",",""));
 
+            StringAssert.AreEqualIgnoringCase(prodName, itemName, "Actual/Expected items names are not equal");
+            Assert.AreEqual(inttotalPrice, (intitemprice * 3), "Actual/Expected items prices are not equal");
         }
-        /*  [Test]
-          [TestCase("html")]
-          [TestCase("selenium")]
-          [TestCase("web")]
-          [TestCase("guide")]
-          public void SearchExamples(string searchParametr)
-          {
-              //Используя Examples, добавить тест для проверки результата поиска для следующих запросов:
-              *//*'selenium','web','guide'*//*
+        [Test]
+        [TestCase("html")]
+        [TestCase("selenium")]
+        [TestCase("web")]
+        [TestCase("guide")]
+        public void SearchExamples(string searchParametr)
+        {
+            //Используя Examples, добавить тест для проверки результата поиска для следующих запросов:
+            //'selenium','web','guide'
               IWebElement searchBox = webDriver.FindElement(By.Name("s"));
-              searchBox.SendKeys(searchParametr);
-              searchBox.Submit();
+            searchBox.SendKeys(searchParametr);
+            searchBox.Submit();
 
-              Assert.IsTrue(webDriver.Title.Contains(searchParametr));
-          }*/
+            Assert.IsTrue(webDriver.Title.Contains(searchParametr));
+        }
 
         [TearDown]
         public void TearDown()
         {
-           /* webDriver.Close();*/
+            webDriver.Close();
         }
     }
 }
