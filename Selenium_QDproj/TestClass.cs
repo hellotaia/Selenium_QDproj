@@ -8,6 +8,7 @@ using NUnit.Framework.Constraints;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.DevTools.V108.Network;
+using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Internal;
 
 namespace Selenium_QDproj
@@ -46,6 +47,19 @@ namespace Selenium_QDproj
             }
         }
 
+        public void WaitForJavaScriptLoad(byte MaxdelaySeconds = 10)
+        {
+            new Actions(webDriver); IJavaScriptExecutor javaScriptExecutor = (IJavaScriptExecutor)webDriver;
+            int num = MaxdelaySeconds; while (num > 0)
+            {
+                Thread.Sleep(3000);
+                if (!(bool)javaScriptExecutor.ExecuteScript("return window.jQuery == undefined") && !(bool)javaScriptExecutor.ExecuteScript("return window.jQuery.active == 0"))
+                {
+                    num--; continue;
+                }
+                break;
+            }
+        }
 
         [Test]
         public void SearchTest() 
@@ -114,15 +128,15 @@ namespace Selenium_QDproj
             viewBasket.Click();
 
             IWebElement qty = webDriver.FindElement(By.XPath("//div[@class='quantity']/input"));
-/*            qty.Click();*/
             qty.Clear();
             qty.SendKeys("3");
+
             IWebElement updateCart = webDriver.FindElement(By.Name("update_cart"));
             updateCart.Click();
             //открыть корзину и сравнить название и цену в колонке "Total" у товара, на соответствие сохраненным значениям в соответствии с измененным количеством
+            WaitForJavaScriptLoad();
             var prodName = webDriver.FindElement(By.XPath("//td[@class=\"product-name\"]/a")).Text;
             var totalPrice = webDriver.FindElement(By.XPath("//td[@class=\"product-subtotal\"]/span")).Text;
-
             var inttotalPrice = Convert.ToDouble(totalPrice.Replace("₹","").Replace(",",""));
 
             StringAssert.AreEqualIgnoringCase(prodName, itemName, "Actual/Expected items names are not equal");
